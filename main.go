@@ -32,6 +32,9 @@ func main() {
 		os.Exit(2)
 	}
 
+	log.Println("psmcli", Version)
+	log.Println("^D to quit")
+
 	// Add default port 3994 if it's missing in the dst string
 
 	host, port, err := net.SplitHostPort(dst)
@@ -51,8 +54,7 @@ func main() {
 		log.Println(err)
 		return
 	}
-	log.Println("psmcli", Version, "connected to", conn.conn.RemoteAddr())
-	log.Println("^D to quit")
+	log.Println("Connected to", conn.conn.RemoteAddr())
 	log.Println("")
 
 	// Use system.version as dummy call to check if we can proceed without
@@ -76,7 +78,11 @@ func main() {
 		log.Println(err)
 		return
 	}
-	defer terminal.Restore(0, oldState)
+	defer func() {
+		terminal.Restore(0, oldState)
+		log.Println("")
+	}()
+
 	term := terminal.NewTerminal(os.NewFile(0, "terminal"), initialPrompt)
 
 	h, w, err := terminal.GetSize(0)
