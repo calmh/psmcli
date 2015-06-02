@@ -44,23 +44,6 @@ func main() {
 		dst = net.JoinHostPort(host, "3994")
 	}
 
-	// Set up a terminal
-
-	oldState, err := terminal.MakeRaw(0)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	defer terminal.Restore(0, oldState)
-	term := terminal.NewTerminal(os.NewFile(0, "terminal"), "$ ")
-
-	h, w, err := terminal.GetSize(0)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	term.SetSize(h, w)
-
 	// Connect to PSM
 
 	conn, err := newConnection(dst)
@@ -69,6 +52,8 @@ func main() {
 		return
 	}
 	log.Println("psmcli", Version, "connected to", conn.conn.RemoteAddr())
+	log.Println("^D to quit")
+	log.Println("")
 
 	// Use system.version as dummy call to check if we can proceed without
 	// authentication.
@@ -78,6 +63,28 @@ func main() {
 		log.Println(err)
 		return
 	}
+
+	initialPrompt := "$ "
+	if res.Error.Code == CodeAccessDenied {
+		initialPrompt = "Username: "
+	}
+
+	// Set up a terminal
+
+	oldState, err := terminal.MakeRaw(0)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer terminal.Restore(0, oldState)
+	term := terminal.NewTerminal(os.NewFile(0, "terminal"), initialPrompt)
+
+	h, w, err := terminal.GetSize(0)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	term.SetSize(h, w)
 
 	user := "default"
 	for res.Error.Code == CodeAccessDenied {
