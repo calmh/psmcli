@@ -11,7 +11,8 @@ import (
 	"os"
 	"strings"
 
-	"code.google.com/p/go.crypto/ssh/terminal"
+	"github.com/calmh/psmcli/completion"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 var (
@@ -163,18 +164,14 @@ func main() {
 
 	// Set up tab completion based on announced commands and parameters
 
-	tabcomp := completer{
-		term: term,
-	}
-
 	smd, err := conn.smd()
 	if err != nil {
 		log.Fatal(err)
 	}
-	tabcomp.importSMD(smd.Result.Services)
-	tabcomp.words["help"] = completionWord{}
 
-	term.AutoCompleteCallback = tabcomp.complete
+	matchers := importSMD(smd.Result.Services)
+	completer := completion.NewCallbackCompleter(matchers...)
+	term.AutoCompleteCallback = completer.Complete
 
 	// Start the REPL
 
@@ -190,7 +187,7 @@ func main() {
 		}
 
 		if line == "help" || line == "?" {
-			tabcomp.printHelp()
+			completer.PrintHelp()
 			continue
 		}
 

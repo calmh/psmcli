@@ -41,6 +41,7 @@ case "${1:-default}" in
 		;;
 
 	default)
-		GOBIN="$(pwd)/bin" go install -ldflags "-w -X main.Version $version"
+		go test ./...
+		GOBIN="$(pwd)/bin" go install -ldflags "-w -X main.Version=$version"
 		;;
 esac
