@@ -200,7 +200,11 @@ func main() {
 			continue
 		}
 
-		cmd := parseCommand(fields)
+		cmd, err := parseCommand(fields)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
 
 		if *verbose {
 			// Print the command locally
@@ -229,7 +233,7 @@ func usage() {
 
 var nextID int
 
-func parseCommand(fields []string) command {
+func parseCommand(fields []string) (command, error) {
 	// The command is the first two parts joined with a dot.
 
 	cmd := command{
@@ -243,7 +247,14 @@ func parseCommand(fields []string) command {
 	// query expression.
 
 	for _, param := range fields[2:] {
-		if strings.Contains(param, "=") && !strings.HasPrefix(param, "(") {
+		if strings.HasPrefix(param, "{") {
+			var obj map[string]interface{}
+			err := json.Unmarshal([]byte(param), &obj)
+			if err != nil {
+				return command{}, err
+			}
+			cmd.Params = append(cmd.Params, obj)
+		} else if strings.Contains(param, "=") && !strings.HasPrefix(param, "(") {
 			parts := strings.Split(param, ",")
 			obj := map[string]string{}
 			for _, part := range parts {
@@ -256,7 +267,7 @@ func parseCommand(fields []string) command {
 		}
 	}
 
-	return cmd
+	return cmd, nil
 }
 
 func printResponse(res response) {
