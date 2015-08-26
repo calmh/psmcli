@@ -187,7 +187,7 @@ func main() {
 		}
 
 		if line == "help" || line == "?" {
-			completer.PrintHelp()
+			completer.PrintHelp(term.Escape)
 			continue
 		}
 

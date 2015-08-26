@@ -58,11 +58,13 @@ func importSMD(services map[string]smdService) []completion.Matcher {
 					m = &completion.Regexp{
 						Exp:         regexp.MustCompile(`^\d+$`),
 						Placeholder: param.Name + " (int)",
+						Optional:    param.Optional,
 					}
 				default:
 					m = &completion.Regexp{
 						Exp:         regexp.MustCompile(`.`),
 						Placeholder: param.Name + " (" + param.Type + ")",
+						Optional:    param.Optional,
 					}
 				}
 				cur.AddNext(m)

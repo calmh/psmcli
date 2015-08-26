@@ -2,6 +2,7 @@ package completion
 
 import (
 	"fmt"
+	"golang.org/x/crypto/ssh/terminal"
 	"regexp"
 	"strings"
 )
@@ -35,9 +36,9 @@ func (c Completer) Complete(line string, pos int) (head string, comps []Word, ta
 	return head, aggrMatch(matchers, words[len(words)-1]), tail
 }
 
-func (c Completer) PrintHelp() {
+func (c Completer) PrintHelp(esc *terminal.EscapeCodes) {
 	for _, m := range c.matchers {
-		for _, l := range m.Help() {
+		for _, l := range m.Help(esc) {
 			fmt.Println(l)
 		}
 	}
@@ -130,7 +131,7 @@ type Matcher interface {
 	Match(word string) []Word
 	Accept(word string) (bool, []Matcher)
 	AddNext(m Matcher)
-	Help() []string
+	Help(*terminal.EscapeCodes) []string
 }
 
 type Word struct {
@@ -162,12 +163,12 @@ func (l *Literal) AddNext(m Matcher) {
 	l.Next = append(l.Next, m)
 }
 
-func (l *Literal) Help() []string {
+func (l *Literal) Help(esc *terminal.EscapeCodes) []string {
 	lines := []string{l.Value}
 
 	var clines []string
 	for _, n := range l.Next {
-		clines = append(clines, n.Help()...)
+		clines = append(clines, n.Help(esc)...)
 	}
 
 	if len(clines) == 1 {
@@ -182,12 +183,17 @@ func (l *Literal) Help() []string {
 type Regexp struct {
 	Exp         *regexp.Regexp
 	Placeholder string
+	Optional    bool
 	Next        []Matcher
 }
 
 func (r *Regexp) Match(word string) []Word {
+	p := "<" + r.Placeholder + ">"
+	if r.Optional {
+		p = "[" + r.Placeholder + "]"
+	}
 	if word == "" {
-		return []Word{{"<" + r.Placeholder + ">", true}}
+		return []Word{{p, true}}
 	}
 	if r.Exp.MatchString(word) {
 		return []Word{{word, false}}
@@ -206,12 +212,16 @@ func (r *Regexp) AddNext(m Matcher) {
 	r.Next = append(r.Next, m)
 }
 
-func (r *Regexp) Help() []string {
-	lines := []string{"<" + r.Placeholder + ">"}
+func (r *Regexp) Help(esc *terminal.EscapeCodes) []string {
+	p := "<" + string(esc.Cyan) + r.Placeholder + string(esc.Reset) + ">"
+	if r.Optional {
+		p = "[" + string(esc.Green) + r.Placeholder + string(esc.Reset) + "]"
+	}
+	lines := []string{p}
 
 	var clines []string
 	for _, n := range r.Next {
-		clines = append(clines, n.Help()...)
+		clines = append(clines, n.Help(esc)...)
 	}
 
 	if len(clines) == 1 {
@@ -253,12 +263,12 @@ func (s *Combine) AddNext(m Matcher) {
 	s.Next = append(s.Next, m)
 }
 
-func (s *Combine) Help() []string {
+func (s *Combine) Help(esc *terminal.EscapeCodes) []string {
 	var lines []string
 	for _, m := range s.Matchers {
-		mlines := m.Help()
+		mlines := m.Help(esc)
 		for _, n := range s.Next {
-			nlines := n.Help()
+			nlines := n.Help(esc)
 			if len(nlines) == 1 {
 				lines = append(lines, mlines[0]+" "+nlines[0])
 			} else {
