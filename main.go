@@ -6,7 +6,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"log"
+	"fmt"
 	"net"
 	"os"
 	"strings"
@@ -20,9 +20,6 @@ var (
 )
 
 func main() {
-	log.SetOutput(os.Stdout)
-	log.SetFlags(0)
-
 	verbose := flag.Bool("v", false, "Verbose output")
 	flag.Usage = usage
 	flag.Parse()
@@ -33,8 +30,8 @@ func main() {
 		os.Exit(2)
 	}
 
-	log.Println("psmcli", Version)
-	log.Println("^D to quit")
+	fmt.Println("psmcli", Version)
+	fmt.Println("^D to quit")
 
 	// Add default port 3994 if it's missing in the dst string
 
@@ -42,7 +39,7 @@ func main() {
 	if err != nil && strings.Contains(err.Error(), "missing port") {
 		dst = net.JoinHostPort(dst, "3994")
 	} else if err != nil {
-		log.Println(err)
+		fmt.Println(err)
 		return
 	} else if port == "" {
 		dst = net.JoinHostPort(host, "3994")
@@ -52,18 +49,18 @@ func main() {
 
 	conn, err := newConnection(dst)
 	if err != nil {
-		log.Println(err)
+		fmt.Println(err)
 		return
 	}
-	log.Println("Connected to", conn.conn.RemoteAddr())
-	log.Println("")
+	fmt.Println("Connected to", conn.conn.RemoteAddr())
+	fmt.Println("")
 
 	// Use system.version as dummy call to check if we can proceed without
 	// authentication.
 
 	res, err := conn.run(command{Method: "system.version"})
 	if err != nil {
-		log.Println(err)
+		fmt.Println(err)
 		return
 	}
 
@@ -76,19 +73,19 @@ func main() {
 
 	oldState, err := terminal.MakeRaw(0)
 	if err != nil {
-		log.Println(err)
+		fmt.Println(err)
 		return
 	}
 	defer func() {
 		terminal.Restore(0, oldState)
-		log.Println("")
+		fmt.Println("")
 	}()
 
 	term := terminal.NewTerminal(os.NewFile(0, "terminal"), initialPrompt)
 
 	h, w, err := terminal.GetSize(0)
 	if err != nil {
-		log.Println(err)
+		fmt.Println(err)
 		return
 	}
 	term.SetSize(h, w)
@@ -98,26 +95,26 @@ func main() {
 		term.SetPrompt("Username: ")
 		user, err = term.ReadLine()
 		if err != nil {
-			log.Println(err)
+			fmt.Println(err)
 			return
 		}
 		pass, err := term.ReadPassword("Password: ")
 		if err != nil {
-			log.Println(err)
+			fmt.Println(err)
 			return
 		}
 		res, err = conn.run(command{Method: "system.login", Params: []interface{}{user, pass}})
 		if err != nil {
-			log.Println(err)
+			fmt.Println(err)
 			return
 		}
 		if res.Error.Code != 0 {
-			log.Println(res.Error.Message)
-			log.Println()
+			fmt.Println(res.Error.Message)
+			fmt.Println()
 		} else {
 			res, err = conn.run(command{Method: "system.version"})
 			if err != nil {
-				log.Println(err)
+				fmt.Println(err)
 				return
 			}
 		}
@@ -132,7 +129,7 @@ func main() {
 
 	res, err = conn.run(command{Method: "system.hostname"})
 	if err != nil {
-		log.Println(err)
+		fmt.Println(err)
 		return
 	}
 	hostname, ok := res.Result.(string)
@@ -140,11 +137,11 @@ func main() {
 		hostname = "(unknown)"
 	}
 
-	log.Println("PSM version", version, "at", hostname)
+	fmt.Println("PSM version", version, "at", hostname)
 
 	res, err = conn.run(command{Method: "model.isReadOnly"})
 	if err != nil {
-		log.Println(err)
+		fmt.Println(err)
 		return
 	}
 
@@ -160,13 +157,14 @@ func main() {
 	hostname = hostnameParts[0]
 	term.SetPrompt(user + "@" + hostname + roRw)
 
-	log.Println()
+	fmt.Println()
 
 	// Set up tab completion based on announced commands and parameters
 
 	smd, err := conn.smd()
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
 	matchers := importSMD(smd.Result.Services)
@@ -175,6 +173,7 @@ func main() {
 
 	// Start the REPL
 
+	id := 0
 	for {
 		line, err := term.ReadLine()
 		if err != nil {
@@ -187,33 +186,34 @@ func main() {
 		}
 
 		if line == "help" || line == "?" {
+			printHelp(term.Escape)
+			continue
+		}
+		if line == "commands" {
 			completer.PrintHelp(term.Escape)
 			continue
 		}
 
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			log.Println("incomplete command")
+		cmd, err := parseCommand(line)
+		if err != nil {
+			fmt.Println(err)
 			continue
 		}
 
-		cmd, err := parseCommand(fields)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
+		cmd.ID = id
+		id++
 
 		if *verbose {
 			// Print the command locally
 			bs, _ := json.Marshal(cmd)
-			log.Printf("> %s", bs)
+			fmt.Printf("> %s", bs)
 		}
 
 		// Execute command on PSM
 
 		res, err := conn.run(cmd)
 		if err != nil {
-			log.Println(err)
+			fmt.Println(err)
 			return
 		}
 
@@ -222,75 +222,65 @@ func main() {
 }
 
 func usage() {
-	log.Println("psmcli", Version)
-	log.Println()
-	log.Println("Usage:")
-	log.Println("  psmcli [-v] <host:port>")
-}
-
-var nextID int
-
-func parseCommand(fields []string) (command, error) {
-	// The command is the first two parts joined with a dot.
-
-	cmd := command{
-		ID:     nextID,
-		Method: fields[0] + "." + fields[1],
-	}
-	nextID++
-
-	// Look for key=val,key=val sequences among params and make them objects.
-	// Not stuff that starts with "(" though, because that might be an LDAP
-	// query expression.
-
-	for _, param := range fields[2:] {
-		if strings.HasPrefix(param, "{") {
-			var obj map[string]interface{}
-			err := json.Unmarshal([]byte(param), &obj)
-			if err != nil {
-				return command{}, err
-			}
-			cmd.Params = append(cmd.Params, obj)
-		} else if strings.Contains(param, "=") && !strings.HasPrefix(param, "(") {
-			parts := strings.Split(param, ",")
-			obj := map[string]string{}
-			for _, part := range parts {
-				kv := strings.SplitN(part, "=", 2)
-				obj[kv[0]] = kv[1]
-			}
-			cmd.Params = append(cmd.Params, obj)
-		} else {
-			cmd.Params = append(cmd.Params, param)
-		}
-	}
-
-	return cmd, nil
+	fmt.Println("psmcli", Version)
+	fmt.Println()
+	fmt.Println("Usage:")
+	fmt.Println("  psmcli [-v] <host:port>")
 }
 
 func printResponse(res response) {
 	if res.Error.Code != 0 {
-		log.Printf("Error %d: %s", res.Error.Code, res.Error.Message)
+		fmt.Printf("Error %d: %s", res.Error.Code, res.Error.Message)
 	} else if res.Result != nil {
 		switch result := res.Result.(type) {
 		case []interface{}:
 			for _, res := range result {
 				switch res := res.(type) {
 				case string, int, json.Number:
-					log.Println(res)
+					fmt.Println(res)
 				default:
 					bs, _ := json.MarshalIndent(res, "", "    ")
-					log.Printf("%s\n\n", bs)
+					fmt.Printf("%s\n\n", bs)
 				}
 			}
 
 		case map[string]interface{}:
 			bs, _ := json.MarshalIndent(result, "", "    ")
-			log.Printf("%s\n\n", bs)
+			fmt.Printf("%s\n\n", bs)
 
 		default:
-			log.Println(result)
+			fmt.Println(result)
 		}
-	} else {
-		log.Println("OK")
 	}
+}
+
+func printHelp(esc *terminal.EscapeCodes) {
+	fmt.Println(`Usage:
+
+help, ?:
+	Print this help
+
+commands:
+	Print available PSM commands. Commands have tab completion available.
+
+Examples:
+
+Simple command without parameter:
+	$ system hostname
+
+Command with parameters:
+	$ object deleteByAid subscriber 1234
+
+Command with object parameters:
+	$ object updateByAid subscriber 1234 attr=value
+	$ object updateByAid subscriber 1234 attr1=value1,attr2=value2
+
+	(No spaces in the object parameter!)
+
+Command with arbitrary JSON object parameter:
+	$ object updateByAid subscriber 1234
+		{"attr1": "value1 with space", "attr2": "value2"}
+
+	(Line break for display purposes only)
+`)
 }
