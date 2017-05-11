@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/calmh/psmcli/completion"
+	"kastelo.io/psmcli/completion"
 )
 
 func importSMD(services map[string]smdService) []completion.Matcher {

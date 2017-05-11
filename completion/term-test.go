@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/calmh/psmcli/completion"
 	"golang.org/x/crypto/ssh/terminal"
+	"kastelo.io/psmcli/completion"
 )
 
 func main() {

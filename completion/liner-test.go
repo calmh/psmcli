@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/calmh/psmcli/completion"
 	"github.com/peterh/liner"
+	"kastelo.io/psmcli/completion"
 )
 
 func main() {
