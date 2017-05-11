@@ -9,55 +9,21 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"regexp"
-	"runtime"
 	"strings"
 
 	"github.com/calmh/psmcli/completion"
-	"github.com/calmh/upgrade"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
 var (
-	Version    = "unknown-dev"
-	signingKey = []byte(`-----BEGIN EC PUBLIC KEY-----
-MIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQBYyrh+aRcAmqSAReHq00XgaJC5Zn3
-JC/rlXAM5M2ODmMElLypAtnmUYFJTnmQD1KSwV49GFwFy+iqzNa9AfQ4gQQB+RmV
-Q2n12crDe2nU9oI0aPZFkIlqrjA0Ky0jT8rpWhmuRc+Bq8XS4q8mY32RFSaceLXo
-N62RXYtkeHL+D41Ct+I=
------END EC PUBLIC KEY-----`)
+	Version = "unknown-dev"
 )
 
 func main() {
 	verbose := flag.Bool("v", false, "Verbose output")
-	doUpgrade := flag.Bool("upgrade", false, "Upgrade to latest version")
 	flag.Usage = usage
 	flag.Parse()
 	dst := flag.Arg(0)
-
-	if *doUpgrade {
-		rels, err := upgrade.GithubReleases("calmh/psmcli", Version, true, false)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		exp := regexp.MustCompile("-" + runtime.GOOS + "-" + runtime.GOARCH)
-		for _, rel := range rels {
-			assets := upgrade.MatchingAssets(exp, rel)
-			if len(assets) == 1 {
-				fmt.Println("Trying", assets[0].Name, "...")
-				err = upgrade.ToURL(assets[0].URL, signingKey)
-				if err == nil {
-					fmt.Println("Upgraded")
-					return
-				}
-				fmt.Println(err)
-			}
-		}
-
-		os.Exit(1)
-	}
 
 	if dst == "" {
 		usage()
@@ -260,7 +226,6 @@ func usage() {
 	fmt.Println()
 	fmt.Println("Usage:")
 	fmt.Println("  psmcli [-v] <host:port>")
-	fmt.Println("  psmcli -upgrade")
 }
 
 func printResponse(res response) {

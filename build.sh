@@ -13,12 +13,7 @@ pkg() {
 
 	mkdir -p "$dst"
 	cp README.md LICENSE "$dst"
-	go build -o "$dst/psmcli" -ldflags "-w -X main.Version=$version"
-
-	if [[ -f ~/signingkeys/calmh.priv ]] ; then
-		[ -f $dst/psmcli ] && stsigtool sign ~/signingkeys/calmh.priv "$dst/psmcli" > "$dst/psmcli.sig"
-		[ -f $dst/psmcli.exe ] && stsigtool sign ~/signingkeys/calmh.priv "$dst/psmcli.exe" > "$dst/psmcli.exe.sig"
-	fi
+	go build -o "$dst/psmcli" -ldflags "-w -X main.Version $version"
 
 	if [[ "$GOOS" == "windows" ]] ; then
 		pushd build
