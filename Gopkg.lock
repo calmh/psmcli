@@ -1,0 +1,19 @@
+memo = "0afa229806deb32863e82da34eb5ad185c0cb8f79f23dcda543dd775815e1231"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/peterh/liner"
+  packages = ["."]
+  revision = "88609521dc4b6c858fd4c98b628147da928ce4ac"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/crypto"
+  packages = ["ssh/terminal"]
+  revision = "122d919ec1efcfb58483215da23f815853e24b81"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/sys"
+  packages = ["unix"]
+  revision = "9ccfe848b9db8435a24c424abbc07a921adf1df5"

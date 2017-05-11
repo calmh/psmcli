@@ -13,7 +13,7 @@ pkg() {
 
 	mkdir -p "$dst"
 	cp README.md LICENSE "$dst"
-	go build -o "$dst/psmcli" -ldflags "-w -X main.Version $version"
+	go build -o "$dst/psmcli" -ldflags "-s -w -X main.Version=$version"
 
 	if [[ "$GOOS" == "windows" ]] ; then
 		pushd build
@@ -41,7 +41,7 @@ case "${1:-default}" in
 		;;
 
 	default)
-		go test ./...
-		GOBIN="$(pwd)/bin" go install -ldflags "-w -X main.Version=$version"
+		go test . ./completion
+		GOBIN="$(pwd)/bin" go install -ldflags "-s -w -X main.Version=$version"
 		;;
 esac
