@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strings"
@@ -85,7 +86,7 @@ func main() {
 
 	h, w, err := terminal.GetSize(0)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(term, err)
 		return
 	}
 	term.SetSize(h, w)
@@ -95,26 +96,26 @@ func main() {
 		term.SetPrompt("Username: ")
 		user, err = term.ReadLine()
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintln(term, err)
 			return
 		}
 		pass, err := term.ReadPassword("Password: ")
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintln(term, err)
 			return
 		}
 		res, err = conn.run(command{Method: "system.login", Params: []interface{}{user, pass}})
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintln(term, err)
 			return
 		}
 		if res.Error.Code != 0 {
-			fmt.Println(res.Error.Message)
-			fmt.Println()
+			fmt.Fprintln(term, res.Error.Message)
+			fmt.Fprintln(term)
 		} else {
 			res, err = conn.run(command{Method: "system.version"})
 			if err != nil {
-				fmt.Println(err)
+				fmt.Fprintln(term, err)
 				return
 			}
 		}
@@ -129,7 +130,7 @@ func main() {
 
 	res, err = conn.run(command{Method: "system.hostname"})
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(term, err)
 		return
 	}
 	hostname, ok := res.Result.(string)
@@ -137,11 +138,11 @@ func main() {
 		hostname = "(unknown)"
 	}
 
-	fmt.Println("PSM version", version, "at", hostname)
+	fmt.Fprintln(term, "PSM version", version, "at", hostname)
 
 	res, err = conn.run(command{Method: "model.isReadOnly"})
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(term, err)
 		return
 	}
 
@@ -157,13 +158,13 @@ func main() {
 	hostname = hostnameParts[0]
 	term.SetPrompt(user + "@" + hostname + roRw)
 
-	fmt.Println()
+	fmt.Fprintln(term)
 
 	// Set up tab completion based on announced commands and parameters
 
 	smd, err := conn.smd()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(term, err)
 		os.Exit(1)
 	}
 
@@ -186,17 +187,17 @@ func main() {
 		}
 
 		if line == "help" || line == "?" {
-			printHelp(term.Escape)
+			printHelp(term, term.Escape)
 			continue
 		}
 		if line == "commands" {
-			completer.PrintHelp(term.Escape)
+			completer.PrintHelp(term, term.Escape)
 			continue
 		}
 
 		cmd, err := parseCommand(line)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintln(term, err)
 			continue
 		}
 
@@ -206,18 +207,18 @@ func main() {
 		if *verbose {
 			// Print the command locally
 			bs, _ := json.Marshal(cmd)
-			fmt.Printf("> %s", bs)
+			fmt.Fprintf(term, "> %s\n", bs)
 		}
 
 		// Execute command on PSM
 
 		res, err := conn.run(cmd)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintln(term, err)
 			return
 		}
 
-		printResponse(res)
+		printResponse(term, res)
 	}
 }
 
@@ -228,34 +229,34 @@ func usage() {
 	fmt.Println("  psmcli [-v] <host:port>")
 }
 
-func printResponse(res response) {
+func printResponse(out io.Writer, res response) {
 	if res.Error.Code != 0 {
-		fmt.Printf("Error %d: %s", res.Error.Code, res.Error.Message)
+		fmt.Fprintf(out, "Error %d: %s", res.Error.Code, res.Error.Message)
 	} else if res.Result != nil {
 		switch result := res.Result.(type) {
 		case []interface{}:
 			for _, res := range result {
 				switch res := res.(type) {
 				case string, int, json.Number:
-					fmt.Println(res)
+					fmt.Fprintln(out, res)
 				default:
 					bs, _ := json.MarshalIndent(res, "", "    ")
-					fmt.Printf("%s\n\n", bs)
+					fmt.Fprintf(out, "%s\n\n", bs)
 				}
 			}
 
 		case map[string]interface{}:
 			bs, _ := json.MarshalIndent(result, "", "    ")
-			fmt.Printf("%s\n\n", bs)
+			fmt.Fprintf(out, "%s\n\n", bs)
 
 		default:
-			fmt.Println(result)
+			fmt.Fprintln(out, result)
 		}
 	}
 }
 
-func printHelp(esc *terminal.EscapeCodes) {
-	fmt.Println(`Usage:
+func printHelp(out io.Writer, esc *terminal.EscapeCodes) {
+	fmt.Fprintln(out, `Usage:
 
 help, ?:
 	Print this help

@@ -2,9 +2,11 @@ package completion
 
 import (
 	"fmt"
-	"golang.org/x/crypto/ssh/terminal"
+	"io"
 	"regexp"
 	"strings"
+
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 // A Completer provides line completion functionality based on Matchers.
@@ -36,10 +38,10 @@ func (c Completer) Complete(line string, pos int) (head string, comps []Word, ta
 	return head, aggrMatch(matchers, words[len(words)-1]), tail
 }
 
-func (c Completer) PrintHelp(esc *terminal.EscapeCodes) {
+func (c Completer) PrintHelp(out io.Writer, esc *terminal.EscapeCodes) {
 	for _, m := range c.matchers {
 		for _, l := range m.Help(esc) {
-			fmt.Println(l)
+			fmt.Fprintln(out, l)
 		}
 	}
 }
