@@ -231,13 +231,13 @@ func usage() {
 
 func printResponse(out io.Writer, res response) {
 	if res.Error.Code != 0 {
-		fmt.Fprintf(out, "Error %d: %s", res.Error.Code, res.Error.Message)
+		fmt.Fprintf(out, "Error %d: %s\n", res.Error.Code, res.Error.Message)
 	} else if res.Result != nil {
 		switch result := res.Result.(type) {
 		case []interface{}:
 			for _, res := range result {
 				switch res := res.(type) {
-				case string, int, json.Number:
+				case string, float64, int, json.Number:
 					fmt.Fprintln(out, res)
 				default:
 					bs, _ := json.MarshalIndent(res, "", "    ")

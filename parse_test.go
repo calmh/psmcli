@@ -51,6 +51,13 @@ func TestParseCommand(t *testing.T) {
 				Params: []interface{}{"subscriber", "1234", map[string]interface{}{"foo": "bar 1", "baz   2": "quux 2"}},
 			},
 		},
+		{
+			`object update subscriber 1234 foo=,bar`,
+			command{
+				Method: "object.update",
+				Params: []interface{}{"subscriber", "1234", map[string]string{"foo": "", "bar": ""}},
+			},
+		},
 	}
 
 	for _, tc := range testcases {

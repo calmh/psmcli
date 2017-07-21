@@ -88,6 +88,10 @@ func parseCommand(line string) (command, error) {
 			parts := strings.Split(param, ",")
 			obj := map[string]string{}
 			for _, part := range parts {
+				if !strings.Contains(part, "=") {
+					obj[part] = ""
+					continue
+				}
 				kv := strings.SplitN(part, "=", 2)
 				obj[kv[0]] = kv[1]
 			}
