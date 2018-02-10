@@ -256,7 +256,7 @@ func printResponse(out io.Writer, res response) {
 }
 
 func printHelp(out io.Writer, esc *terminal.EscapeCodes) {
-	fmt.Fprintln(out, `Usage:
+	fmt.Fprint(out, `Usage:
 
 help, ?:
 	Print this help
@@ -283,5 +283,6 @@ Command with arbitrary JSON object parameter:
 		{"attr1": "value1 with space", "attr2": "value2"}
 
 	(Line break for display purposes only)
+
 `)
 }
